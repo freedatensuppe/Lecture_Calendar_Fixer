@@ -1,5 +1,6 @@
 certifi==2025.11.12
 charset-normalizer==3.4.4
+exchangelib==5.4.3
 icalendar==6.3.2
 idna==3.11
 jaraco.classes==3.4.0
@@ -9,8 +10,7 @@ keyring==25.7.0
 more-itertools==10.8.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
-pywin32==311
-pywin32-ctypes==0.2.3
+pytz==2024.2
 requests==2.32.5
 six==1.17.0
 tzdata==2025.2
