@@ -85,10 +85,10 @@ class ExchangeAccountManager:
         if organizer_filter:
             filtered_items = []
             for item in items:
-                if item.organizer and organizer_filter in str(
-                    item.organizer.email_address
-                ):
-                    filtered_items.append(item)
+                # Filter by the marker category that we add to all our events
+                if hasattr(item, 'categories') and item.categories:
+                    if any(organizer_filter in str(cat) for cat in item.categories):
+                        filtered_items.append(item)
             return filtered_items
 
         return items
@@ -222,6 +222,10 @@ class EventWrapper:
         reminder_on = True
         reminder_time = 15
         legacy_free_busy_status = "Busy"
+        
+        # Always add a marker category to identify events created by this script
+        marker_category = "MCI-DESIGNER-TERMIN"
+        categories = [category, marker_category]
 
         if self.location != "-":
             room, mci_location, *_ = self.location.split(" / ")
@@ -231,6 +235,7 @@ class EventWrapper:
                 reminder_on = False
             elif at_different_location(mci_location):
                 category = "Vorlesung-Anderer-Standort"
+                categories = [category, marker_category]
                 reminder_time += get_travel_time(mci_location)
             elif self.kind not in ["Lehrveranstaltung", "Prüfung", "Sonstiges"]:
                 legacy_free_busy_status = "Free"
@@ -245,7 +250,7 @@ class EventWrapper:
                 end=end_ews,
                 location=self.location,
                 legacy_free_busy_status=legacy_free_busy_status,
-                categories=[category],
+                categories=categories,
                 reminder_is_set=True,
                 reminder_minutes_before_start=reminder_time,
             )
@@ -258,7 +263,7 @@ class EventWrapper:
                 end=end_ews,
                 location=self.location,
                 legacy_free_busy_status=legacy_free_busy_status,
-                categories=[category],
+                categories=categories,
                 reminder_is_set=False,
             )
 

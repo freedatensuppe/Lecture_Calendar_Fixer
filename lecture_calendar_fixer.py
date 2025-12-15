@@ -108,25 +108,34 @@ def update_changed_events(wrapped_events: list[EventWrapper], exchange_manager):
     )
 
     logging.info(f"Found {len(calendar_items)} Exchange calendar items")
+    
+    # Create dict with a composite key (subject, start time, duration) for better matching
     calendar_item_dict = {}
-
-    # Create dict with organizer email as key
     for item in calendar_items:
-        organizer_email = item.organizer.email_address if item.organizer else ""
-        calendar_item_dict[organizer_email] = item
+        if item.subject and item.start:
+            start_str = item.start.astimezone().strftime("%Y-%m-%d %H:%M")
+            end_time = item.end.astimezone() if item.end else None
+            duration = int((end_time - item.start.astimezone()).total_seconds() / 60) if end_time else 0
+            
+            # Create composite key: subject + start time + duration
+            key = f"{item.subject}|{start_str}|{duration}"
+            calendar_item_dict[key] = item
 
-    # create a dict of all found/imported events
+    # create a dict of all found/imported events using the same composite key
     lecture_event_dict: dict[str, EventWrapper] = {}
     for event in wrapped_events:
-        lecture_event_dict[event.organizer] = event
+        if event.start_dt:
+            start_str = event.start_dt.strftime("%Y-%m-%d %H:%M")
+            key = f"{event.subject}|{start_str}|{event.duration}"
+            lecture_event_dict[key] = event
 
     logging.info(f"Found {len(wrapped_events)} lecture ical events")
 
     account = exchange_manager.get_account()
 
-    for imported_event in lecture_event_dict.values():
-        # get corresponding calendar item from dict
-        corresponding_calendar_item = calendar_item_dict.get(imported_event.organizer)
+    for event_key, imported_event in lecture_event_dict.items():
+        # get corresponding calendar item from dict using composite key
+        corresponding_calendar_item = calendar_item_dict.get(event_key)
 
         if corresponding_calendar_item:
             # if found wrap it for comparison
@@ -141,7 +150,7 @@ def update_changed_events(wrapped_events: list[EventWrapper], exchange_manager):
                 )
                 if try_deleting_calendar_item(corresponding_calendar_item):
                     # also remove from dict
-                    del calendar_item_dict[imported_event.organizer]
+                    del calendar_item_dict[event_key]
 
                 logging.info(f"\nAdding event:\n\t{imported_event}")
                 imported_event.to_outlook_event(account)
@@ -155,26 +164,22 @@ def update_changed_events(wrapped_events: list[EventWrapper], exchange_manager):
     # More calendar items than ical events --> something has been deleted in the ical events
     if len(calendar_item_dict) > len(lecture_event_dict):
         for calendar_item in calendar_item_dict.values():
-            organizer_email = (
-                calendar_item.organizer.email_address if calendar_item.organizer else ""
-            )
-            if not lecture_event_dict.get(organizer_email):
-                calendar_item_wrapped = EventWrapper.from_outlook_event(calendar_item)
+            calendar_item_wrapped = EventWrapper.from_outlook_event(calendar_item)
 
-                # if the calendar item is not in the ical events then delete it only if it is in the future
-                if (
-                    calendar_item_wrapped.start_dt
-                    and calendar_item_wrapped.start_dt
-                    > datetime.datetime.now(
-                        calendar_item_wrapped.start_dt.tzinfo
-                        if calendar_item_wrapped.start_dt.tzinfo
-                        else None
-                    )
-                ):
-                    logging.info(
-                        f"\nTrying to delete calendar item:\n\t{calendar_item_wrapped}"
-                    )
-                    try_deleting_calendar_item(calendar_item)
+            # if the calendar item is not in the ical events then delete it only if it is in the future
+            if (
+                calendar_item_wrapped.start_dt
+                and calendar_item_wrapped.start_dt
+                > datetime.datetime.now(
+                    calendar_item_wrapped.start_dt.tzinfo
+                    if calendar_item_wrapped.start_dt.tzinfo
+                    else None
+                )
+            ):
+                logging.info(
+                    f"\nTrying to delete calendar item:\n\t{calendar_item_wrapped}"
+                )
+                try_deleting_calendar_item(calendar_item)
 
 
 if __name__ == "__main__":
