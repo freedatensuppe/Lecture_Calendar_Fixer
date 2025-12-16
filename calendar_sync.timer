@@ -1,0 +1,12 @@
+# usually in /etc/systemd/system/
+
+[Unit]
+Description=Run calendar_sync.service Daily at 7:00 AM
+
+[Timer]
+OnCalendar=*-*-* 7:00:00
+Persistent=true
+Unit=calendar_sync.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,9 @@
+# usually in /etc/systemd/system/
+
+[Unit]
+Description=Run calendar_sync python script
+
+[Service]
+Type=oneshot
+ExecStart=# <python3 path> <path>/Lecture_Calendar_Fixer/lecture_calendar_fixer.py
+
